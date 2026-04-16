@@ -7,6 +7,7 @@ export function useLogsData(auth) {
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
+    const [levelFilter, setLevelFilter] = useState('all');
 
     const permissions = useMemo(() => ({
         access: hasPermission(auth, 'module.logskrsft.access'),
@@ -28,7 +29,11 @@ export function useLogsData(auth) {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
             });
             const json = await response.json();
-            setRows(Array.isArray(json?.data) ? json.data : []);
+            const incomingRows = Array.isArray(json?.data) ? json.data : [];
+            setRows(incomingRows.map((row) => ({
+                ...row,
+                level: (row.level || 'info').toLowerCase(),
+            })));
         } catch {
             setRows([]);
         } finally {
@@ -70,15 +75,52 @@ export function useLogsData(auth) {
         await fetchData();
     }, [permissions.delete, fetchData]);
 
+    const filteredRows = useMemo(() => {
+        const normalizedSearch = search.trim().toLowerCase();
+
+        return rows.filter((row) => {
+            if (levelFilter !== 'all' && row.level !== levelFilter) {
+                return false;
+            }
+
+            if (!normalizedSearch) {
+                return true;
+            }
+
+            const haystack = [row.action, row.message, row.level, row.user_name]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase();
+
+            return haystack.includes(normalizedSearch);
+        });
+    }, [rows, levelFilter, search]);
+
+    const stats = useMemo(() => {
+        const base = { total: rows.length, info: 0, warning: 0, error: 0 };
+
+        for (const row of rows) {
+            if (row.level === 'warning') base.warning += 1;
+            else if (row.level === 'error') base.error += 1;
+            else base.info += 1;
+        }
+
+        return base;
+    }, [rows]);
+
     useEffect(() => {
         fetchData();
     }, [fetchData]);
 
     return {
-        rows,
+        rows: filteredRows,
+        rawRows: rows,
         loading,
         search,
         setSearch,
+        levelFilter,
+        setLevelFilter,
+        stats,
         permissions,
         fetchData,
         createSampleLog,

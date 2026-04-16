@@ -14,9 +14,12 @@ export default function LogsIndex() {
                 <LogsHeader
                     search={d.search}
                     setSearch={d.setSearch}
+                    levelFilter={d.levelFilter}
+                    setLevelFilter={d.setLevelFilter}
                     onRefresh={d.fetchData}
                     canCreate={d.permissions.create}
                     onCreate={d.createSampleLog}
+                    stats={d.stats}
                 />
 
                 <LogsTable

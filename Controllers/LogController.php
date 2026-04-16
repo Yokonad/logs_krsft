@@ -15,8 +15,9 @@ class LogController extends Controller
 
     public function index(): Response
     {
-        $moduleName = basename(dirname(__DIR__));
-        return Inertia::render("{$moduleName}/Index");
+        // Compatibilidad: algunos frontends resuelven módulos por prefijo "Modules/"
+        // y esperan el nombre PascalCase del módulo sin "/Index".
+        return Inertia::render('Modules/LogsKrsft');
     }
 
     public function list(Request $request): JsonResponse

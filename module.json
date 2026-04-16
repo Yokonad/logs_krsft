@@ -1,0 +1,40 @@
+{
+  "name": "LogsKrsft",
+  "slug": "logs_krsft",
+  "display_name": "LOGS",
+  "version": "1.0.0",
+  "description": "v1.0.0: Módulo base de registro y consulta de logs del sistema",
+  "icon": "icon.svg",
+  "color": "#0AA4A4",
+  "gradient": "#08C6B6",
+  "author": "yokonad",
+  "enabled": true,
+  "dependencies": [],
+  "permissions": [
+    {
+      "action": "access",
+      "display_name": "Logs: Acceder",
+      "description": "Permite ver el módulo de Logs en el dashboard y abrir la vista principal"
+    },
+    {
+      "action": "view",
+      "display_name": "Logs: Ver",
+      "description": "Permite consultar el listado de eventos y aplicar filtros de búsqueda"
+    },
+    {
+      "action": "create",
+      "display_name": "Logs: Crear",
+      "description": "Permite registrar eventos manuales de auditoría"
+    },
+    {
+      "action": "delete",
+      "display_name": "Logs: Eliminar",
+      "description": "Permite eliminar eventos del historial de logs"
+    }
+  ],
+  "segment_permissions": {
+    "list": "view",
+    "create": "create",
+    "remove": "delete"
+  }
+}

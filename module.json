@@ -9,6 +9,11 @@
   "gradient": "#08C6B6",
   "author": "yokonad",
   "enabled": true,
+  "has_config_panel": true,
+  "config_component": "logskrsft/Views/DiscordConfigPanel.jsx",
+  "integration_display_name": "DISCORD",
+  "integration_name": "DiscordWebhook",
+  "config_order": 200,
   "dependencies": [],
   "permissions": [
     {

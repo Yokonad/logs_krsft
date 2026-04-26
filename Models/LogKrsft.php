@@ -13,5 +13,15 @@ class LogKrsft extends Model
         'message',
         'level',
         'user_name',
+        'module',
+        'user_id',
+        'ip_address',
+        'extra',
+        'performed_at',
+    ];
+
+    protected $casts = [
+        'extra' => 'array',
+        'performed_at' => 'datetime',
     ];
 }

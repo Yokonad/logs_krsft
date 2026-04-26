@@ -1,10 +1,10 @@
 import clsx from 'clsx';
 
 /**
- * Input — HyperUI Input Simple.
+ * Select — HyperUI Select Simple.
  */
-function Input({
-    label, name, type = 'text', value, onChange, placeholder, error, required = false, helper, className = '', ref, ...props
+function Select({
+    label, name, value, onChange, options = [], placeholder = 'Seleccionar...', error, required = false, helper, className = '', children, ref, ...props
 }) {
     return (
         <div className={className}>
@@ -13,13 +13,11 @@ function Input({
                     {label}
                     {required && <span className="ml-1 text-red-500">*</span>}
                 </span>
-                <input
+                <select
                     ref={ref}
-                    type={type}
                     name={name}
                     value={value}
                     onChange={onChange}
-                    placeholder={placeholder}
                     className={clsx(
                         'mt-0.5 w-full rounded shadow-sm sm:text-sm transition-colors',
                         error
@@ -27,7 +25,15 @@ function Input({
                             : 'border-gray-300 focus:border-primary focus:ring-primary',
                     )}
                     {...props}
-                />
+                >
+                    {placeholder && <option value="">{placeholder}</option>}
+                    {children
+                        ? children
+                        : options.map((opt, i) => (
+                            <option key={opt.value ?? i} value={opt.value}>{opt.label}</option>
+                        ))
+                    }
+                </select>
             </label>
             {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
             {helper && !error && <p className="mt-1 text-xs text-gray-500">{helper}</p>}
@@ -35,6 +41,5 @@ function Input({
     );
 }
 
-Input.displayName = 'Input';
-
-export default Input;
+Select.displayName = 'Select';
+export default Select;

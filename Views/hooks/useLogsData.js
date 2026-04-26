@@ -8,6 +8,9 @@ export function useLogsData(auth) {
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
     const [levelFilter, setLevelFilter] = useState('all');
+    const [moduleFilter, setModuleFilter] = useState('auth');
+    const [availableModules, setAvailableModules] = useState([]);
+    const [dashboardStats, setDashboardStats] = useState(null);
 
     const permissions = useMemo(() => ({
         access: hasPermission(auth, 'module.logskrsft.access'),
@@ -16,16 +19,23 @@ export function useLogsData(auth) {
         delete: hasPermission(auth, 'module.logskrsft.delete'),
     }), [auth]);
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async ({ silent = false } = {}) => {
         if (!permissions.access && !permissions.view) {
             setRows([]);
             return;
         }
 
-        setLoading(true);
+        if (!silent) {
+            setLoading(true);
+        }
         try {
-            const query = search ? `?search=${encodeURIComponent(search)}` : '';
-            const response = await fetch(`${API_BASE}/list${query}`, {
+            const params = new URLSearchParams();
+            if (search) params.append('search', search);
+            if (moduleFilter !== 'all' && moduleFilter !== 'todos') params.append('module', moduleFilter);
+            if (levelFilter !== 'all') params.append('level', levelFilter);
+
+            const queryString = params.toString() ? `?${params.toString()}` : '';
+            const response = await fetch(`${API_BASE}/list${queryString}`, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
             });
             const json = await response.json();
@@ -35,13 +45,41 @@ export function useLogsData(auth) {
                 level: (row.level || 'info').toLowerCase(),
             })));
         } catch {
-            setRows([]);
+            if (!silent) {
+                setRows([]);
+            }
         } finally {
-            setLoading(false);
+            if (!silent) {
+                setLoading(false);
+            }
         }
-    }, [permissions.access, permissions.view, search]);
+    }, [permissions.access, permissions.view, search, moduleFilter, levelFilter]);
 
-    const createSampleLog = useCallback(async () => {
+    const fetchModules = useCallback(async () => {
+        try {
+            const response = await fetch(`${API_BASE}/modules`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            const json = await response.json();
+            setAvailableModules(Array.isArray(json?.data) ? json.data : []);
+        } catch (error) {
+            console.error('Error fetching modules:', error);
+        }
+    }, []);
+
+    const fetchStats = useCallback(async () => {
+        try {
+            const response = await fetch(`${API_BASE}/stats`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            const json = await response.json();
+            setDashboardStats(json?.data || null);
+        } catch (error) {
+            console.error('Error fetching stats:', error);
+        }
+    }, []);
+
+    const createLog = useCallback(async (params) => {
         if (!permissions.create) return;
 
         await fetch(`${API_BASE}/create`, {
@@ -51,15 +89,15 @@ export function useLogsData(auth) {
                 'X-Requested-With': 'XMLHttpRequest',
             },
             body: JSON.stringify({
-                action: 'manual_event',
-                message: 'Evento manual registrado desde el módulo Logs',
-                level: 'info',
+                ...params,
                 user_name: auth?.user?.name ?? null,
             }),
         });
 
         await fetchData();
-    }, [permissions.create, fetchData, auth]);
+        await fetchStats();
+        await fetchModules();
+    }, [permissions.create, fetchData, fetchStats, fetchModules, auth]);
 
     const deleteLog = useCallback(async (id) => {
         if (!permissions.delete) return;
@@ -73,44 +111,66 @@ export function useLogsData(auth) {
         });
 
         await fetchData();
-    }, [permissions.delete, fetchData]);
+        await fetchStats();
+    }, [permissions.delete, fetchData, fetchStats]);
 
     const filteredRows = useMemo(() => {
         const normalizedSearch = search.trim().toLowerCase();
 
+        if (!normalizedSearch) {
+            return rows;
+        }
+
         return rows.filter((row) => {
-            if (levelFilter !== 'all' && row.level !== levelFilter) {
-                return false;
-            }
-
-            if (!normalizedSearch) {
-                return true;
-            }
-
-            const haystack = [row.action, row.message, row.level, row.user_name]
+            const haystack = [row.action, row.message, row.level, row.user_name, row.module]
                 .filter(Boolean)
                 .join(' ')
                 .toLowerCase();
 
             return haystack.includes(normalizedSearch);
         });
-    }, [rows, levelFilter, search]);
-
-    const stats = useMemo(() => {
-        const base = { total: rows.length, info: 0, warning: 0, error: 0 };
-
-        for (const row of rows) {
-            if (row.level === 'warning') base.warning += 1;
-            else if (row.level === 'error') base.error += 1;
-            else base.info += 1;
-        }
-
-        return base;
-    }, [rows]);
+    }, [rows, search]);
 
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    useEffect(() => {
+        fetchModules();
+        fetchStats();
+    }, [fetchModules, fetchStats]);
+
+    useEffect(() => {
+        if (!permissions.access && !permissions.view) {
+            return undefined;
+        }
+
+        const silentRefresh = () => {
+            if (document.hidden) {
+                return;
+            }
+
+            fetchData({ silent: true });
+            fetchStats();
+        };
+
+        const intervalId = window.setInterval(silentRefresh, 15000);
+
+        const handleReturnToForeground = () => {
+            if (!document.hidden) {
+                silentRefresh();
+            }
+        };
+
+        window.addEventListener('focus', handleReturnToForeground);
+        document.addEventListener('visibilitychange', handleReturnToForeground);
+
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', handleReturnToForeground);
+            window.removeEventListener('visibilitychange', handleReturnToForeground);
+        };
+    }, [permissions.access, permissions.view, fetchData, fetchStats]);
 
     return {
         rows: filteredRows,
@@ -120,10 +180,13 @@ export function useLogsData(auth) {
         setSearch,
         levelFilter,
         setLevelFilter,
-        stats,
+        moduleFilter,
+        setModuleFilter,
+        availableModules,
+        dashboardStats,
         permissions,
         fetchData,
-        createSampleLog,
+        createLog,
         deleteLog,
     };
 }
